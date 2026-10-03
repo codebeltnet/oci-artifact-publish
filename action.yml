@@ -1,0 +1,67 @@
+name: Publish OCI Artifact from Codebelt
+description: An opinionated action that verifies and promotes a multi-platform OCI archive to a registry and confirms the immutable digest.
+inputs:
+  archive-path:
+    description: Path to the OCI image archive.
+    required: true
+  checksum-path:
+    description: Path to the detached SHA-256 checksum file.
+    required: true
+  version:
+    description: Human-selected SemVer release version without the v prefix.
+    required: true
+  revision:
+    description: Full 40-character commit SHA represented by the image.
+    required: true
+  repository:
+    description: Registry and repository name, without a scheme or tag.
+    required: true
+  username:
+    description: Registry username.
+    required: true
+  password:
+    description: Registry password.
+    required: true
+  skopeo-image:
+    description: Skopeo container image used for OS-independent registry promotion.
+    required: false
+    default: quay.io/skopeo/stable:latest
+outputs:
+  image:
+    description: Human-readable version-tagged image reference.
+    value: ${{ steps.publish.outputs.image }}
+  digest:
+    description: Immutable SHA-256 digest confirmed at the registry.
+    value: ${{ steps.publish.outputs.digest }}
+  image-by-digest:
+    description: Immutable registry image reference suitable for Kubernetes deployment.
+    value: ${{ steps.publish.outputs.image-by-digest }}
+runs:
+  using: composite
+  steps:
+    - id: verify
+      name: Verify transferred OCI artifact
+      uses: codebeltnet/oci-artifact-verify@v1
+      with:
+        archive-path: ${{ inputs.archive-path }}
+        checksum-path: ${{ inputs.checksum-path }}
+        version: ${{ inputs.version }}
+        revision: ${{ inputs.revision }}
+
+    - id: publish
+      name: Promote the exact OCI artifact and verify its registry digest
+      shell: pwsh
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        ARCHIVE_PATH: ${{ inputs.archive-path }}
+        RELEASE_VERSION: ${{ inputs.version }}
+        IMAGE_REPOSITORY: ${{ inputs.repository }}
+        REGISTRY_USERNAME: ${{ inputs.username }}
+        REGISTRY_PASSWORD: ${{ inputs.password }}
+        EXPECTED_DIGEST: ${{ steps.verify.outputs.digest }}
+        SKOPEO_IMAGE: ${{ inputs.skopeo-image }}
+      run: |
+        & "$env:ACTION_PATH/scripts/publish-oci.ps1"
+branding:
+  icon: 'umbrella'
+  color: 'blue'
