@@ -31,7 +31,7 @@ outputs:
     description: Human-readable version-tagged image reference.
     value: ${{ steps.publish.outputs.image }}
   digest:
-    description: Immutable SHA-256 digest confirmed at the registry.
+    description: Actual immutable destination registry SHA-256 digest.
     value: ${{ steps.publish.outputs.digest }}
   image-by-digest:
     description: Immutable registry image reference suitable for Kubernetes deployment.
@@ -49,16 +49,17 @@ runs:
         revision: ${{ inputs.revision }}
 
     - id: publish
-      name: Promote the exact OCI artifact and verify its registry digest
+      name: Promote the verified OCI artifact and verify its registry identity
       shell: pwsh
       env:
         ACTION_PATH: ${{ github.action_path }}
         ARCHIVE_PATH: ${{ inputs.archive-path }}
         RELEASE_VERSION: ${{ inputs.version }}
+        RELEASE_REVISION: ${{ inputs.revision }}
         IMAGE_REPOSITORY: ${{ inputs.repository }}
         REGISTRY_USERNAME: ${{ inputs.username }}
         REGISTRY_PASSWORD: ${{ inputs.password }}
-        EXPECTED_DIGEST: ${{ steps.verify.outputs.digest }}
+        SOURCE_DIGEST: ${{ steps.verify.outputs.digest }}
         SKOPEO_IMAGE: ${{ inputs.skopeo-image }}
       run: |
         & "$env:ACTION_PATH/scripts/publish-oci.ps1"
